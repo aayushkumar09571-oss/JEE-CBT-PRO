@@ -1,0 +1,16 @@
+{
+  "name": "jee-cbt-pro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "build:android": "npm run build:web && npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  }
+}
