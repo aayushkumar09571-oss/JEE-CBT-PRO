@@ -1,0 +1,63 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>JEE CBT PRO</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#061323;color:#f4f6ff;font-family:Arial,sans-serif}
+header{padding:20px 18px 14px;background:#071525;border-bottom:1px solid #24466d;position:sticky;top:0;z-index:5}
+h1{font-size:26px;margin:0 0 6px}.sub{color:#aabbd0}.wrap{padding:16px;max-width:760px;margin:auto}
+.card{background:#0d2038;border:1px solid #315b89;border-radius:24px;padding:20px;margin:14px 0}
+.btn{display:block;width:100%;border:1px solid #38628f;background:#0e2540;color:white;border-radius:16px;padding:15px;margin:10px 0;font-size:17px}
+.primary{background:#6557ff;border-color:#8176ff}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#0a1a2e;border:1px solid #31506f;border-radius:16px;padding:15px;text-align:center}.big{font-size:27px}
+.qnav{display:flex;gap:8px;overflow:auto;padding-bottom:6px}.pill{min-width:90px}.hide{display:none}
+textarea{width:100%;min-height:90px;background:#08182a;color:#fff;border:1px solid #315b89;border-radius:14px;padding:12px}
+.feedback{padding:14px;border-radius:14px;margin:12px 0;font-weight:bold}.ok{background:#064c31;color:#6dffb5}.bad{background:#551b2b;color:#ff91a4}
+.question img{width:100%;max-height:55vh;object-fit:contain;background:#000;border-radius:15px}.choice{display:inline-block;width:48%;margin:1%;padding:15px;border:1px solid #315b89;border-radius:14px;background:#0c223b;color:#fff;font-size:20px}
+.choice.lock{pointer-events:none;opacity:.8}.review{border-color:#ffd34e}.pause{background:#263d55}
+</style></head><body>
+<header><h1>JEE CBT PRO</h1><div class="sub">Offline test • marks • attempts • question mapping</div></header>
+<div class="wrap" id="home">
+ <div class="card"><h2>My Test Series</h2><p class="sub">Tests stay on this phone.</p>
+  <button class="btn primary" onclick="document.getElementById('file').click()">＋ Add New Test</button>
+  <input id="file" type="file" accept=".json" class="hide">
+ </div>
+ <div id="tests"></div>
+</div>
+<div class="wrap hide" id="test"></div>
+<script>
+const KEY='jee_cbt_pro_tests_v1'; let db=JSON.parse(localStorage.getItem(KEY)||'{}'), active=null, i=0, start=0, paused=false, attempts=[];
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function esc(x){return String(x??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+function home(){document.getElementById('home').classList.remove('hide');document.getElementById('test').classList.add('hide');renderTests()}
+function renderTests(){let el=document.getElementById('tests');el.innerHTML='';
+ Object.values(db).forEach(t=>{let a=t.attempts||[];el.innerHTML+=`<div class="card"><h2>${esc(t.title)}</h2><p class="sub">${t.questions.length} questions • ${t.duration||60} min</p>
+ <div class="grid"><div class="stat"><div class="big">${a.length?Math.round(a.at(-1).score):'—'}</div>Last Score</div><div class="stat"><div class="big">${a.length}</div>Attempts</div></div>
+ <button class="btn primary" onclick="startTest('${t.id}')">▶ Start / Reattempt</button>
+ <button class="btn" onclick="showAnalysis('${t.id}')">📊 Analysis / All Attempts</button></div>`})}
+function startTest(id){active=db[id];i=0;start=Date.now();paused=false;attempts=active.questions.map(()=>({answer:null,status:'Not attempted',time:0,review:false,note:''}));renderQ()}
+function renderQ(){let q=active.questions[i], a=attempts[i], t=Math.max(0,Math.floor((Date.now()-start)/1000));document.getElementById('home').classList.add('hide');let el=document.getElementById('test');el.classList.remove('hide');
+ el.innerHTML=`<div class="card"><div class="grid"><div class="stat"><div class="big">${fmt((active.duration||60)*60-t)}</div>TEST TIME</div><div class="stat"><div class="big">${fmt(a.time)}</div>QUESTION TIME</div></div>
+ <button class="btn pause" onclick="togglePause()">${paused?'▶ Resume':'⏸ Pause / Break'}</button></div>
+ <div class="qnav">${active.questions.map((_,n)=>`<button class="btn pill" onclick="i=${n};renderQ()">Q${n+1}</button>`).join('')}</div>
+ <div class="card question"><h2>Q${i+1}</h2>${q.image?`<img src="${q.image}">`:''}<p>${esc(q.text||'')}</p>
+ ${q.options.map((x,n)=>`<button class="choice ${a.answer===n?'lock':''}" onclick="answer(${n})">${String.fromCharCode(65+n)}. ${esc(x)}</button>`).join('')}
+ ${a.status!=='Not attempted'?`<div class="feedback ${a.status==='Correct'?'ok':'bad'}">${a.status} — Correct answer: ${String.fromCharCode(65+q.correct)}</div>`:''}
+ <div class="grid"><button class="btn" onclick="a.review=!a.review;renderQ()">⭐ ${a.review?'Unmark':'Mark for Review'}</button>
+ <button class="btn" onclick="i=Math.min(active.questions.length-1,i+1);renderQ()">Next →</button></div>
+ <button class="btn" onclick="i=Math.max(0,i-1);renderQ()">← Prev</button>
+ <h3>📝 Notes / Key Point</h3><textarea onchange="attempts[i].note=this.value">${esc(a.note)}</textarea>
+ <button class="btn primary" onclick="finishTest()">Submit Test</button></div>`}
+function fmt(s){s=Math.max(0,s|0);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function answer(n){let a=attempts[i];if(a.status!=='Not attempted')return;a.answer=n;a.time=Math.max(1,Math.floor((Date.now()-start)/1000));a.status=n===active.questions[i].correct?'Correct':'Wrong';renderQ()}
+function togglePause(){paused=!paused;if(paused){alert('Test paused. Timers stop until Resume.')}renderQ()}
+function finishTest(){let score=0;attempts.forEach((a,j)=>{if(a.status==='Correct')score+=4;else if(a.status==='Wrong')score-=1});let at={date:new Date().toISOString(),score,attempts:JSON.parse(JSON.stringify(attempts))};active.attempts=active.attempts||[];active.attempts.push(at);db[active.id]=active;save();showAnalysis(active.id)}
+function showAnalysis(id){active=db[id];document.getElementById('home').classList.add('hide');let el=document.getElementById('test');el.classList.remove('hide');let ats=active.attempts||[];
+ el.innerHTML=`<div class="card"><h1>${esc(active.title)} — Analysis</h1><button class="btn" onclick="home()">← Back to Home</button><h2>All Attempts (${ats.length})</h2>
+ ${ats.map((at,k)=>`<div class="card"><h3>Attempt ${k+1}</h3><p>Score: <b>${at.score}</b> • ${new Date(at.date).toLocaleString()}</p><button class="btn primary" onclick="viewAttempt(${k})">View Question Mapping</button></div>`).join('')}</div>`}
+function viewAttempt(k){let at=active.attempts[k];document.getElementById('test').innerHTML=`<div class="card"><button class="btn" onclick="showAnalysis('${active.id}')">← Back to Analysis</button><h1>Attempt ${k+1} — Question Mapping</h1>
+ ${at.attempts.map((a,j)=>`<div class="card"><h3>Q${j+1}</h3><p>Status: <b>${a.status}</b> • Time: ${fmt(a.time)} ${a.review?'• ⭐ Review':''}</p><p>Your answer: ${a.answer==null?'—':String.fromCharCode(65+a.answer)} • Correct: ${String.fromCharCode(65+active.questions[j].correct)}</p><textarea placeholder="Analysis note / working / doubt" onchange="active.attempts[${k}].attempts[${j}].note=this.value;db[active.id]=active;save()">${esc(a.note)}</textarea>
+ <div class="grid"><button class="btn" onclick="viewQ(${k},${j})">View Question</button><button class="btn" onclick="viewQ(${k},${Math.min(active.questions.length-1,j+1)})">Next →</button></div></div>`).join('')}</div>`}
+function viewQ(k,j){let at=active.attempts[k],q=active.questions[j],a=at.attempts[j];document.getElementById('test').innerHTML=`<div class="card"><button class="btn" onclick="viewAttempt(${k})">← Back to Mapping</button><h2>Q${j+1}</h2>${q.image?`<img class="question" src="${q.image}">`:''}<p>${esc(q.text||'')}</p><p>Your: ${a.answer==null?'—':String.fromCharCode(65+a.answer)} • Correct: ${String.fromCharCode(65+q.correct)} • <b>${a.status}</b></p><textarea placeholder="Analysis note / working / doubt" onchange="active.attempts[${k}].attempts[${j}].note=this.value;db[active.id]=active;save()">${esc(a.note)}</textarea><div class="grid"><button class="btn" onclick="viewQ(${k},Math.max(0,j-1))">← Prev</button><button class="btn" onclick="viewQ(${k},Math.min(active.questions.length-1,j+1))">Next →</button></div></div>`}
+document.getElementById('file').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let t=JSON.parse(r.result);t.id=t.id||Date.now().toString();t.attempts=t.attempts||[];db[t.id]=t;save();renderTests();alert('Test added successfully.')}catch(x){alert('Invalid test package JSON')}};r.readAsText(f)}
+renderTests();
+</script></body></html>
